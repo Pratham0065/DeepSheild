@@ -182,7 +182,7 @@ def get_probabilities(loader):
             # CNN
             cnn_outputs = cnn_model(images)
 
-            batch_cnn_probs = torch.softmax(
+            batch_cnn_probs = torch.softmax( 
                 cnn_outputs,
                 dim=1
             )
