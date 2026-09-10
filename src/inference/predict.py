@@ -14,8 +14,16 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 sys.path.append(str(PROJECT_ROOT))
 
+
+# ============================================================
+# MODEL IMPORTS
+# ============================================================
+
 from models.cnn_model import DeepShieldCNN
 from models.vit_model import DeepShieldViT
+
+# Human-readable explanation engine
+from web.explanation_engine import explain_ensemble
 
 
 # ============================================================
@@ -161,8 +169,10 @@ def predict_image(image_path):
 
     with torch.no_grad():
 
+        # CNN prediction
         cnn_output = cnn(image_tensor)
 
+        # ViT prediction
         vit_output = vit(image_tensor)
 
         # Convert logits to probabilities
@@ -177,7 +187,7 @@ def predict_image(image_path):
         )[0]
 
         # ----------------------------------------------------
-        # ENSEMBLE
+        # 50:50 ENSEMBLE
         # ----------------------------------------------------
 
         ensemble_probs = (
@@ -222,6 +232,25 @@ def predict_image(image_path):
     )
 
     # ========================================================
+    # HUMAN-READABLE EXPLANATION
+    # ========================================================
+
+    explanation = explain_ensemble(
+
+        cnn_fake=cnn_probs[0].item(),
+
+        cnn_real=cnn_probs[1].item(),
+
+        vit_fake=vit_probs[0].item(),
+
+        vit_real=vit_probs[1].item(),
+
+        ensemble_fake=ensemble_probs[0].item(),
+
+        ensemble_real=ensemble_probs[1].item()
+    )
+
+    # ========================================================
     # RESULTS
     # ========================================================
 
@@ -239,6 +268,18 @@ def predict_image(image_path):
         f"{cnn_confidence:.2f}%"
     )
 
+    print(
+        f"Fake       : "
+        f"{cnn_probs[0].item() * 100:.2f}%"
+    )
+
+    print(
+        f"Real       : "
+        f"{cnn_probs[1].item() * 100:.2f}%"
+    )
+
+    # --------------------------------------------------------
+
     print("\n----------------------------------------")
     print("VISION TRANSFORMER")
     print("----------------------------------------")
@@ -252,6 +293,18 @@ def predict_image(image_path):
         f"Confidence : "
         f"{vit_confidence:.2f}%"
     )
+
+    print(
+        f"Fake       : "
+        f"{vit_probs[0].item() * 100:.2f}%"
+    )
+
+    print(
+        f"Real       : "
+        f"{vit_probs[1].item() * 100:.2f}%"
+    )
+
+    # --------------------------------------------------------
 
     print("\n----------------------------------------")
     print("CNN + ViT ENSEMBLE")
@@ -275,6 +328,20 @@ def predict_image(image_path):
         f"{ensemble_confidence:.2f}%"
     )
 
+    print(
+        f"Fake       : "
+        f"{ensemble_probs[0].item() * 100:.2f}%"
+    )
+
+    print(
+        f"Real       : "
+        f"{ensemble_probs[1].item() * 100:.2f}%"
+    )
+
+    # ========================================================
+    # FINAL DEEPS PREDICTION
+    # ========================================================
+
     print("\n========================================")
     print("FINAL DEEPS PREDICTION")
     print("========================================")
@@ -291,12 +358,50 @@ def predict_image(image_path):
 
     print("========================================")
 
+    # ========================================================
+    # HUMAN-READABLE EXPLANATION
+    # ========================================================
+
+    print("\n========================================")
+    print("WHY DID DEEPS MAKE THIS PREDICTION?")
+    print("========================================")
+
+    print(
+        explanation["explanation"]
+    )
+
+    print(
+        f"\nConfidence Level: "
+        f"{explanation['confidence']}"
+    )
+
+    print("========================================")
+
+    # ========================================================
+    # RETURN RESULTS
+    # ========================================================
+
     return {
+
+        # ----------------------------------------------------
+        # CNN
+        # ----------------------------------------------------
+
         "cnn_prediction":
             CLASS_NAMES[cnn_prediction],
 
         "cnn_confidence":
             cnn_confidence,
+
+        "cnn_fake_probability":
+            cnn_probs[0].item(),
+
+        "cnn_real_probability":
+            cnn_probs[1].item(),
+
+        # ----------------------------------------------------
+        # ViT
+        # ----------------------------------------------------
 
         "vit_prediction":
             CLASS_NAMES[vit_prediction],
@@ -304,11 +409,34 @@ def predict_image(image_path):
         "vit_confidence":
             vit_confidence,
 
+        "vit_fake_probability":
+            vit_probs[0].item(),
+
+        "vit_real_probability":
+            vit_probs[1].item(),
+
+        # ----------------------------------------------------
+        # Ensemble
+        # ----------------------------------------------------
+
         "ensemble_prediction":
             CLASS_NAMES[ensemble_prediction],
 
         "ensemble_confidence":
-            ensemble_confidence
+            ensemble_confidence,
+
+        "ensemble_fake_probability":
+            ensemble_probs[0].item(),
+
+        "ensemble_real_probability":
+            ensemble_probs[1].item(),
+
+        # ----------------------------------------------------
+        # Explanation
+        # ----------------------------------------------------
+
+        "explanation":
+            explanation
     }
 
 
@@ -317,6 +445,10 @@ def predict_image(image_path):
 # ============================================================
 
 if __name__ == "__main__":
+
+    # --------------------------------------------------------
+    # CHECK ARGUMENT
+    # --------------------------------------------------------
 
     if len(sys.argv) != 2:
 
@@ -340,7 +472,15 @@ if __name__ == "__main__":
 
         sys.exit(1)
 
+    # --------------------------------------------------------
+    # IMAGE PATH
+    # --------------------------------------------------------
+
     image_path = Path(sys.argv[1])
+
+    # --------------------------------------------------------
+    # CHECK IMAGE EXISTS
+    # --------------------------------------------------------
 
     if not image_path.exists():
 
@@ -351,4 +491,8 @@ if __name__ == "__main__":
 
         sys.exit(1)
 
-    predict_image(image_path) 
+    # --------------------------------------------------------
+    # RUN PREDICTION
+    # --------------------------------------------------------
+
+    predict_image(image_path)
