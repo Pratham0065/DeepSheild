@@ -19,5 +19,5 @@ Currently under development.
 ## Team
 
 - Pratham Singh — Team Leader
-- Team Member 2
-- Team Member 3
+- Prince Kumar
+- Shivansh Shukla
